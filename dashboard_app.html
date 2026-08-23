@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>X Lead Finder</title>
+<style>
+/* ------------------------------------------------------------------
+   Design notes for whoever picks this up next.
+
+   The tool is an instrument, not a magazine, so the type is set in
+   Bahnschrift, the condensed technical face that ships with Windows,
+   with Segoe UI carrying the reading text. Numbers and search queries
+   are set in Cascadia Mono, because a score and a query are data and
+   should look like data.
+
+   Every colour is carried on the score meter, which is the one place
+   boldness is spent. The threshold notch at 65 is drawn on the meter
+   itself, so a reviewer can see at a glance which side of the line a
+   lead falls on without reading the number.
+   ------------------------------------------------------------------ */
+
+:root {
+  --ink:        #0F1620;
+  --ink-soft:   #55617A;
+  --ink-faint:  #8C97AC;
+  --paper:      #E9EDF2;
+  --card:       #FFFFFF;
+  --edge:       #D2D9E3;
+  --signal:     #10736E;
+  --signal-dim: #B9D8D5;
+  --money:      #9A5B00;
+  --quiet:      #A2AEC0;
+  --alert:      #A32F3B;
+
+  --display: "Bahnschrift", "Segoe UI Semibold", system-ui, sans-serif;
+  --body:    "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono:    "Cascadia Mono", "Consolas", ui-monospace, monospace;
+
+  --radius: 3px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+/* --- top bar ----------------------------------------------------- */
+
+header {
+  background: var(--ink);
+  color: #FFFFFF;
+  padding: 14px 20px;
+  display: flex;
+  align-items: baseline;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+
+.wordmark {
+  font-family: var(--display);
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+nav { display: flex; gap: 4px; margin-left: auto; }
+
+nav button {
+  background: none;
+  border: 1px solid transparent;
+  color: #AEBAD0;
+  padding: 5px 14px;
+  cursor: pointer;
+  font-family: var(--display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 13px;
+  border-radius: var(--radius);
+}
+nav button:hover { color: #FFFFFF; }
+nav button[aria-selected="true"] {
+  color: var(--ink);
+  background: #FFFFFF;
+}
+nav button:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
+
+/* --- counters ---------------------------------------------------- */
+
+.counters {
+  display: flex;
+  gap: 26px;
+  padding: 12px 20px;
+  background: var(--card);
+  border-bottom: 1px solid var(--edge);
+  flex-wrap: wrap;
+}
+.counter b {
+  font-family: var(--mono);
+  font-size: 19px;
+  font-weight: 600;
+  display: block;
+  line-height: 1.1;
+}
+.counter span {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* --- layout ------------------------------------------------------ */
+
+main { padding: 20px; max-width: 1180px; margin: 0 auto; }
+.panel { display: none; }
+.panel.showing { display: block; }
+
+.split { display: grid; grid-template-columns: 232px 1fr; gap: 20px; }
+@media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+
+.box {
+  background: var(--card);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+h2 {
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+.field { margin-bottom: 14px; }
+.field label {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 4px;
+}
+.field input[type="text"],
+.field input[type="number"],
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: #FFFFFF;
+}
+.field textarea { font-family: var(--mono); font-size: 13px; resize: vertical; }
+.field input:focus-visible,
+.field select:focus-visible,
+.field textarea:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 1px;
+}
+
+.tick { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.tick label { text-transform: none; letter-spacing: 0; font-size: 14px;
+              color: var(--ink); margin: 0; }
+
+/* --- lead cards -------------------------------------------------- */
+
+.lead {
+  background: var(--card);
+  border: 1px solid var(--edge);
+  border-left: 3px solid var(--quiet);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.lead[data-band="strong"] { border-left-color: var(--signal); }
+.lead[data-band="maybe"]  { border-left-color: var(--signal-dim); }
+.lead[data-state="handled"] { opacity: 0.5; }
+
+.lead-top { display: flex; align-items: flex-start; gap: 14px; }
+
+.meter { width: 132px; flex: 0 0 132px; }
+.meter .value {
+  font-family: var(--mono);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+}
+.meter .track {
+  position: relative;
+  height: 6px;
+  background: #E4E9F0;
+  border-radius: 3px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.meter .fill { height: 100%; background: var(--signal); }
+.meter .notch {
+  position: absolute;
+  top: -3px; bottom: -3px;
+  left: 65%;
+  width: 1px;
+  background: var(--ink);
+}
+.meter .caption {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-top: 5px;
+}
+
+.lead-body { flex: 1; min-width: 0; }
+.byline { font-size: 13px; color: var(--ink-soft); margin-bottom: 6px; }
+.byline strong { color: var(--ink); font-weight: 600; }
+.post-text { margin: 0 0 8px; white-space: pre-wrap; word-break: break-word; }
+.reason {
+  border-left: 2px solid var(--signal-dim);
+  padding-left: 10px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+}
+
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.chip {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  padding: 2px 9px;
+  color: var(--ink-soft);
+}
+.chip.money { border-color: var(--money); color: var(--money); }
+.chip.state { border-color: var(--signal); color: var(--signal); }
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.actions button, .btn {
+  background: #FFFFFF;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.actions button:hover, .btn:hover { border-color: var(--ink-soft); }
+.actions button:focus-visible, .btn:focus-visible {
+  outline: 2px solid var(--signal); outline-offset: 1px;
+}
+.btn.primary {
+  background: var(--signal); border-color: var(--signal); color: #FFFFFF;
+}
+.btn.primary:hover { background: #0C5F5B; }
+.btn.danger { color: var(--alert); border-color: #E3C2C6; }
+
+/* --- watchlist editor -------------------------------------------- */
+
+.watch {
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 12px;
+  background: #FBFCFD;
+}
+.watch.off { opacity: 0.62; }
+.watch-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.watch-head input[type="text"] { flex: 1; }
+
+.row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+@media (max-width: 620px) { .row { grid-template-columns: 1fr; } }
+
+/* --- notices and logs -------------------------------------------- */
+
+.notice {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+  border: 1px solid var(--edge);
+  background: #FFFFFF;
+}
+.notice.good { border-color: var(--signal); }
+.notice.bad  { border-color: var(--alert); color: var(--alert); }
+
+pre.log {
+  background: var(--ink);
+  color: #D7E1EF;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  padding: 14px;
+  border-radius: var(--radius);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  max-height: 420px;
+}
+
+.empty { text-align: center; padding: 50px 20px; color: var(--ink-soft); }
+.empty h3 { font-family: var(--display); letter-spacing: 0.06em;
+            text-transform: uppercase; margin: 0 0 8px; }
+
+.hint { font-size: 13px; color: var(--ink-faint); margin-top: 4px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .lead { transition: opacity 0.18s ease; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">X Lead Finder</div>
+  <nav role="tablist">
+    <button role="tab" id="tab-leads" aria-selected="true">Leads</button>
+    <button role="tab" id="tab-describe" aria-selected="false">Describe</button>
+    <button role="tab" id="tab-settings" aria-selected="false">Settings</button>
+    <button role="tab" id="tab-run" aria-selected="false">Collect</button>
+  </nav>
+</header>
+
+<div class="counters" id="counters"></div>
+
+<main>
+
+  <!-- ============================ LEADS ============================ -->
+  <section class="panel showing" id="panel-leads">
+    <div class="split">
+
+      <aside class="box">
+        <h2>Narrow the list</h2>
+
+        <div class="field">
+          <label for="f-min">Lowest score</label>
+          <select id="f-min">
+            <option value="0">Show everything</option>
+            <option value="40">40 and above</option>
+            <option value="65" selected>65 and above</option>
+            <option value="90">90 and above</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="f-watch">Watchlist</label>
+          <select id="f-watch"><option value="">All watchlists</option></select>
+        </div>
+
+        <div class="field">
+          <label for="f-cat">Category</label>
+          <select id="f-cat"><option value="">All categories</option></select>
+        </div>
+
+        <div class="field">
+          <label for="f-state">Review state</label>
+          <select id="f-state">
+            <option value="open" selected>Not yet handled</option>
+            <option value="">Everything</option>
+            <option value="saved">Saved only</option>
+            <option value="handled">Handled only</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="f-words">Contains the words</label>
+          <input type="text" id="f-words" placeholder="video, agency">
+        </div>
+
+        <div class="field">
+          <label for="f-sort">Order by</label>
+          <select id="f-sort">
+            <option value="score" selected>Highest score</option>
+            <option value="new">Most recent post</option>
+          </select>
+        </div>
+
+        <div class="tick">
+          <input type="checkbox" id="f-money">
+          <label for="f-money">Money mentioned only</label>
+        </div>
+        <div class="tick">
+          <input type="checkbox" id="f-once" checked>
+          <label for="f-once">One post per author</label>
+        </div>
+      </aside>
+
+      <div>
+        <div id="lead-count" class="hint" style="margin-bottom:10px"></div>
+        <div id="lead-list"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =========================== DESCRIBE ========================== -->
+  <section class="panel" id="panel-describe">
+    <div id="describe-notice"></div>
+
+    <div class="box" style="margin-bottom:18px">
+      <h2>Say who you are looking for</h2>
+      <div class="field">
+        <label for="wish">In ordinary words</label>
+        <textarea id="wish" rows="3"
+          placeholder="people looking for someone to build a custom AI workflow"></textarea>
+        <div class="hint">
+          Write it as a sentence about the person, not as a search.
+          Drafting costs nothing.
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="do-draft">Draft a watchlist</button>
+      </div>
+    </div>
+
+    <div class="box" id="draft-box" style="display:none">
+      <h2>Proposed watchlist</h2>
+      <p class="hint" id="draft-why" style="margin-top:0"></p>
+
+      <div id="draft-warnings"></div>
+
+      <div class="field">
+        <label for="draft-name">Name</label>
+        <input type="text" id="draft-name">
+      </div>
+
+      <div class="field">
+        <label for="draft-desc">Plain English, read by the scorer</label>
+        <textarea id="draft-desc" rows="2"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="draft-query">Search sent to X</label>
+        <textarea id="draft-query" rows="4"></textarea>
+        <div class="hint">
+          Edit any of this before saving. Nothing is written until you
+          press Add to watchlists.
+        </div>
+      </div>
+
+      <div class="tick">
+        <input type="checkbox" id="draft-on" checked>
+        <label for="draft-on">Switch it on straight away</label>
+      </div>
+
+      <div class="actions" style="margin-top:12px">
+        <button class="btn" id="do-preview">Try it on real posts</button>
+        <button class="btn primary" id="do-save">Add to watchlists</button>
+      </div>
+      <div class="hint" style="margin-top:10px">
+        Trying it fetches one page of about twenty posts and costs a few
+        thousandths of a dollar. It is the only reliable way to find out
+        whether a query matches anything before you rely on it.
+      </div>
+
+      <div id="preview-out" style="margin-top:16px"></div>
+    </div>
+  </section>
+
+  <!-- =========================== SETTINGS ========================== -->
+  <section class="panel" id="panel-settings">
+    <div id="settings-notice"></div>
+
+    <div class="box" style="margin-bottom:18px">
+      <h2>Spending limits</h2>
+      <div class="row">
+        <div class="field">
+          <label for="s-run">Most posts received per run</label>
+          <input type="number" id="s-run" min="1">
+          <div class="hint">You pay for posts received, not posts kept.</div>
+        </div>
+        <div class="field">
+          <label for="s-each">Kept per watchlist</label>
+          <input type="number" id="s-each" min="1">
+        </div>
+        <div class="field">
+          <label for="s-author">Kept per author</label>
+          <input type="number" id="s-author" min="1">
+          <div class="hint">Counted across every run, not just this one.</div>
+        </div>
+        <div class="field">
+          <label for="s-pages">Pages per watchlist</label>
+          <input type="number" id="s-pages" min="1">
+        </div>
+        <div class="field">
+          <label for="s-price">Cost per 1000 posts, in dollars</label>
+          <input type="number" id="s-price" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="tick">
+        <input type="checkbox" id="s-confirm">
+        <label for="s-confirm">Ask before spending</label>
+      </div>
+    </div>
+
+    <div class="box">
+      <h2>What to watch for</h2>
+      <div id="watch-list"></div>
+      <div class="actions" style="margin-top:14px">
+        <button class="btn" id="add-watch">Add a watchlist</button>
+        <button class="btn primary" id="save-settings">Save changes</button>
+      </div>
+      <div class="hint" style="margin-top:10px">
+        Saving rewrites config.yaml and keeps the previous version as
+        config.backup.yaml. Nothing here spends money on its own.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ COLLECT =========================== -->
+  <section class="panel" id="panel-run">
+    <div id="run-notice"></div>
+
+    <div class="box" style="margin-bottom:18px">
+      <h2>Collect new posts</h2>
+      <p id="estimate">Working out what a run would cost.</p>
+      <div class="actions">
+        <button class="btn primary" id="do-collect">Collect now</button>
+        <button class="btn" id="do-score">Score new posts</button>
+        <button class="btn danger" id="do-rescore">Judge everything again</button>
+      </div>
+      <div class="hint" style="margin-top:10px">
+        Collecting spends credits. Scoring is free, because it reads the
+        posts already on this computer. Judging everything again throws
+        away the old scores and applies the current rules, which is what
+        you want after editing the judging instructions. Your saved and
+        handled marks survive it.
+      </div>
+    </div>
+
+    <div class="box">
+      <h2>What happened</h2>
+      <pre class="log" id="run-log">Nothing has run yet in this session.</pre>
+    </div>
+  </section>
+
+</main>
+
+<script>
+"use strict";
+
+/* -------------------------------------------------------------------
+   State
+   ------------------------------------------------------------------- */
+
+let allLeads = [];
+let settings = null;
+
+/* -------------------------------------------------------------------
+   Small helpers
+   ------------------------------------------------------------------- */
+
+function el(id) { return document.getElementById(id); }
+
+function make(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined && text !== null) node.textContent = String(text);
+  return node;
+}
+
+async function callApi(path, options) {
+  const response = await fetch(path, options);
+  let payload = null;
+  try { payload = await response.json(); } catch (error) { payload = null; }
+  if (!response.ok) {
+    const detail = payload && payload.detail ? payload.detail
+                                             : "Request failed.";
+    throw new Error(detail);
+  }
+  return payload;
+}
+
+function notify(where, message, kind) {
+  const holder = el(where);
+  holder.innerHTML = "";
+  holder.appendChild(make("div", "notice " + (kind || ""), message));
+}
+
+function prettyDate(raw) {
+  if (!raw) return "";
+  const when = new Date(raw);
+  if (isNaN(when.getTime())) return raw;
+  return when.toLocaleString(undefined,
+    { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+/* -------------------------------------------------------------------
+   Tabs
+   ------------------------------------------------------------------- */
+
+const TABS = [
+  ["tab-leads", "panel-leads"],
+  ["tab-describe", "panel-describe"],
+  ["tab-settings", "panel-settings"],
+  ["tab-run", "panel-run"],
+];
+
+TABS.forEach(function (pair) {
+  el(pair[0]).addEventListener("click", function () {
+    TABS.forEach(function (other) {
+      const chosen = other[0] === pair[0];
+      el(other[0]).setAttribute("aria-selected", chosen ? "true" : "false");
+      el(other[1]).classList.toggle("showing", chosen);
+    });
+    if (pair[0] === "tab-settings") loadSettings();
+    if (pair[0] === "tab-run") loadEstimate();
+  });
+});
+
+/* -------------------------------------------------------------------
+   Leads
+   ------------------------------------------------------------------- */
+
+async function loadLeads() {
+  const data = await callApi("/api/leads");
+  allLeads = data.leads;
+  drawCounters(data.totals);
+  fillChoices();
+  drawLeads();
+}
+
+function drawCounters(totals) {
+  const holder = el("counters");
+  holder.innerHTML = "";
+  const items = [
+    ["Collected", totals.collected],
+    ["Judged", totals.scored],
+    ["Awaiting a score", totals.unscored],
+    ["Scoring 65 plus", totals.strong],
+    ["Saved", totals.saved],
+    ["Handled", totals.handled],
+  ];
+  items.forEach(function (pair) {
+    const box = make("div", "counter");
+    box.appendChild(make("b", null, pair[1]));
+    box.appendChild(make("span", null, pair[0]));
+    holder.appendChild(box);
+  });
+}
+
+function fillChoices() {
+  fillOne("f-watch", "All watchlists", "watchlist");
+  fillOne("f-cat", "All categories", "category");
+}
+
+function fillOne(id, firstLabel, field) {
+  const select = el(id);
+  const chosen = select.value;
+  const values = Array.from(new Set(
+    allLeads.map(function (lead) { return lead[field] || ""; })
+  )).filter(Boolean).sort();
+
+  select.innerHTML = "";
+  select.appendChild(new Option(firstLabel, ""));
+  values.forEach(function (value) {
+    select.appendChild(new Option(value, value));
+  });
+  select.value = values.indexOf(chosen) >= 0 ? chosen : "";
+}
+
+function currentFilters() {
+  return {
+    lowest: parseInt(el("f-min").value, 10) || 0,
+    watchlist: el("f-watch").value,
+    category: el("f-cat").value,
+    state: el("f-state").value,
+    words: el("f-words").value.trim().toLowerCase(),
+    sort: el("f-sort").value,
+    moneyOnly: el("f-money").checked,
+    oncePerAuthor: el("f-once").checked,
+  };
+}
+
+function selectLeads() {
+  const filters = currentFilters();
+  let chosen = allLeads.filter(function (lead) {
+    if ((lead.intent_score || 0) < filters.lowest) return false;
+    if (filters.watchlist && lead.watchlist !== filters.watchlist) return false;
+    if (filters.category && lead.category !== filters.category) return false;
+    if (filters.moneyOnly && !lead.budget_signal) return false;
+
+    if (filters.state === "open" && lead.status === "handled") return false;
+    if (filters.state === "saved" && lead.status !== "saved") return false;
+    if (filters.state === "handled" && lead.status !== "handled") return false;
+
+    if (filters.words) {
+      const haystack = ((lead.text || "") + " " + (lead.author || "") + " "
+                        + (lead.reason || "")).toLowerCase();
+      const wanted = filters.words.split(",")
+        .map(function (part) { return part.trim(); })
+        .filter(Boolean);
+      const hit = wanted.some(function (word) {
+        return haystack.indexOf(word) >= 0;
+      });
+      if (!hit) return false;
+    }
+    return true;
+  });
+
+  if (filters.sort === "new") {
+    chosen.sort(function (a, b) {
+      return new Date(b.posted_at || 0) - new Date(a.posted_at || 0);
+    });
+  } else {
+    chosen.sort(function (a, b) {
+      return (b.intent_score || 0) - (a.intent_score || 0);
+    });
+  }
+
+  if (filters.oncePerAuthor) {
+    const seen = new Set();
+    chosen = chosen.filter(function (lead) {
+      const who = (lead.author || "").toLowerCase();
+      if (!who) return true;
+      if (seen.has(who)) return false;
+      seen.add(who);
+      return true;
+    });
+  }
+
+  return chosen;
+}
+
+function drawLeads() {
+  const list = el("lead-list");
+  const chosen = selectLeads();
+
+  el("lead-count").textContent =
+    chosen.length + " of " + allLeads.length + " judged posts shown";
+
+  list.innerHTML = "";
+
+  if (chosen.length === 0) {
+    const empty = make("div", "empty");
+    empty.appendChild(make("h3", null, "Nothing matches yet"));
+    empty.appendChild(make("p", null,
+      allLeads.length === 0
+        ? "Open the Collect tab, gather some posts, then score them."
+        : "Loosen a filter on the left, or lower the score threshold."));
+    list.appendChild(empty);
+    return;
+  }
+
+  chosen.forEach(function (lead) { list.appendChild(buildCard(lead)); });
+}
+
+function buildCard(lead) {
+  const score = lead.intent_score || 0;
+  const card = make("div", "lead");
+  card.dataset.band = score >= 65 ? "strong" : (score >= 40 ? "maybe" : "weak");
+  card.dataset.state = lead.status || "new";
+
+  const top = make("div", "lead-top");
+
+  /* the score meter, the one place colour is spent */
+  const meter = make("div", "meter");
+  meter.appendChild(make("div", "value", score));
+  const track = make("div", "track");
+  const fill = make("div", "fill");
+  fill.style.width = Math.max(0, Math.min(100, score)) + "%";
+  track.appendChild(fill);
+  track.appendChild(make("div", "notch"));
+  meter.appendChild(track);
+  meter.appendChild(make("div", "caption", "worth a look at 65"));
+  top.appendChild(meter);
+
+  const body = make("div", "lead-body");
+
+  const byline = make("div", "byline");
+  const handle = make("strong", null, "@" + (lead.author || "unknown"));
+  byline.appendChild(handle);
+  if (lead.author_name) {
+    byline.appendChild(document.createTextNode("  " + lead.author_name));
+  }
+  const when = prettyDate(lead.posted_at);
+  if (when) byline.appendChild(document.createTextNode("  posted " + when));
+  body.appendChild(byline);
+
+  /* textContent, never innerHTML, so a post can never inject markup */
+  body.appendChild(make("p", "post-text", lead.text || ""));
+
+  if (lead.reason) body.appendChild(make("div", "reason", lead.reason));
+
+  const chips = make("div", "chips");
+  if (lead.category) chips.appendChild(make("span", "chip", lead.category));
+  if (lead.watchlist) chips.appendChild(make("span", "chip", lead.watchlist));
+  if (lead.budget_signal) {
+    chips.appendChild(make("span", "chip money", "money mentioned"));
+  }
+  if (lead.status && lead.status !== "new") {
+    chips.appendChild(make("span", "chip state", lead.status));
+  }
+  body.appendChild(chips);
+
+  const actions = make("div", "actions");
+
+  if (lead.post_url) {
+    const open = make("button", null, "Open post");
+    open.addEventListener("click", function () {
+      window.open(lead.post_url, "_blank", "noopener");
+    });
+    actions.appendChild(open);
+
+    const copy = make("button", null, "Copy link");
+    copy.addEventListener("click", async function () {
+      try {
+        await navigator.clipboard.writeText(lead.post_url);
+        copy.textContent = "Link copied";
+      } catch (error) {
+        copy.textContent = "Copying is blocked";
+      }
+      setTimeout(function () { copy.textContent = "Copy link"; }, 1600);
+    });
+    actions.appendChild(copy);
+  }
+
+  const saveLabel = lead.status === "saved" ? "Remove from saved" : "Save";
+  const save = make("button", null, saveLabel);
+  save.addEventListener("click", function () {
+    changeStatus(lead, lead.status === "saved" ? "new" : "saved");
+  });
+  actions.appendChild(save);
+
+  const doneLabel = lead.status === "handled" ? "Move back to open"
+                                              : "Mark handled";
+  const done = make("button", null, doneLabel);
+  done.addEventListener("click", function () {
+    changeStatus(lead, lead.status === "handled" ? "new" : "handled");
+  });
+  actions.appendChild(done);
+
+  body.appendChild(actions);
+  top.appendChild(body);
+  card.appendChild(top);
+  return card;
+}
+
+async function changeStatus(lead, next) {
+  try {
+    await callApi("/api/leads/" + encodeURIComponent(lead.post_id) + "/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: next }),
+    });
+    lead.status = next;
+    await loadLeads();
+  } catch (error) {
+    window.alert("That mark could not be saved. " + error.message);
+  }
+}
+
+["f-min", "f-watch", "f-cat", "f-state", "f-sort"].forEach(function (id) {
+  el(id).addEventListener("change", drawLeads);
+});
+["f-money", "f-once"].forEach(function (id) {
+  el(id).addEventListener("change", drawLeads);
+});
+el("f-words").addEventListener("input", drawLeads);
+
+/* -------------------------------------------------------------------
+   Describe: plain English into a watchlist
+   ------------------------------------------------------------------- */
+
+function showWarnings(list) {
+  const holder = el("draft-warnings");
+  holder.innerHTML = "";
+  if (!list || list.length === 0) return;
+  const box = make("div", "notice bad");
+  box.appendChild(make("strong", null, "Worth checking before you save"));
+  const points = document.createElement("ul");
+  points.style.margin = "6px 0 0";
+  points.style.paddingLeft = "18px";
+  list.forEach(function (line) {
+    points.appendChild(make("li", null, line));
+  });
+  box.appendChild(points);
+  holder.appendChild(box);
+}
+
+el("do-draft").addEventListener("click", async function () {
+  const wish = el("wish").value.trim();
+  const button = el("do-draft");
+  const original = button.textContent;
+
+  button.disabled = true;
+  button.textContent = "Thinking";
+  el("describe-notice").innerHTML = "";
+
+  try {
+    const draft = await callApi("/api/query/draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: wish }),
+    });
+
+    el("draft-name").value = draft.name || "";
+    el("draft-desc").value = draft.description || "";
+    el("draft-query").value = draft.query || "";
+    el("draft-why").textContent = draft.reasoning || "";
+    showWarnings(draft.warnings);
+    el("preview-out").innerHTML = "";
+    el("draft-box").style.display = "block";
+    el("draft-box").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } catch (error) {
+    notify("describe-notice", error.message, "bad");
+  } finally {
+    button.disabled = false;
+    button.textContent = original;
+  }
+});
+
+/* Re-check the query as it is edited by hand. This costs nothing. */
+let checkTimer = null;
+el("draft-query").addEventListener("input", function () {
+  window.clearTimeout(checkTimer);
+  checkTimer = window.setTimeout(async function () {
+    try {
+      const result = await callApi("/api/query/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: el("draft-query").value }),
+      });
+      showWarnings(result.warnings);
+    } catch (error) {
+      /* A failed check is not worth interrupting the person for. */
+    }
+  }, 500);
+});
+
+el("do-preview").addEventListener("click", async function () {
+  const query = el("draft-query").value.trim();
+  if (!query) return;
+
+  const goAhead = window.confirm(
+    "This fetches about twenty real posts from the supplier and costs a " +
+    "few thousandths of a dollar. Go ahead?");
+  if (!goAhead) return;
+
+  const button = el("do-preview");
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "Asking X";
+  el("preview-out").innerHTML = "";
+
+  try {
+    const result = await callApi("/api/query/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: query }),
+    });
+    drawPreview(result);
+  } catch (error) {
+    notify("describe-notice", error.message, "bad");
+  } finally {
+    button.disabled = false;
+    button.textContent = original;
+  }
+});
+
+function drawPreview(result) {
+  const holder = el("preview-out");
+  holder.innerHTML = "";
+
+  holder.appendChild(make("div",
+    "notice " + (result.received > 0 ? "good" : "bad"), result.verdict));
+
+  if (result.samples.length === 0) return;
+
+  holder.appendChild(make("h2", null, "What came back"));
+
+  result.samples.forEach(function (sample) {
+    const card = make("div", "lead");
+    const body = make("div", "lead-body");
+
+    const byline = make("div", "byline");
+    byline.appendChild(make("strong", null, "@" + sample.author));
+    const when = prettyDate(sample.posted_at);
+    if (when) byline.appendChild(document.createTextNode("  posted " + when));
+    body.appendChild(byline);
+
+    body.appendChild(make("p", "post-text", sample.text));
+
+    if (sample.post_url) {
+      const actions = make("div", "actions");
+      const open = make("button", null, "Open post");
+      open.addEventListener("click", function () {
+        window.open(sample.post_url, "_blank", "noopener");
+      });
+      actions.appendChild(open);
+      body.appendChild(actions);
+    }
+
+    card.appendChild(body);
+    holder.appendChild(card);
+  });
+
+  holder.appendChild(make("p", "hint",
+    "These are raw keyword matches, not scored leads. The scorer is what "
+    + "separates the buyers from the noise, and it runs after collection."));
+}
+
+el("do-save").addEventListener("click", async function () {
+  const payload = {
+    name: el("draft-name").value.trim(),
+    description: el("draft-desc").value.trim(),
+    query: el("draft-query").value.trim(),
+    enabled: el("draft-on").checked,
+  };
+
+  const button = el("do-save");
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "Saving";
+
+  try {
+    const result = await callApi("/api/query/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    notify("describe-notice",
+      "Added. You now have " + result.total_watchlists +
+      " watchlists. Open the Collect tab to gather posts with it.", "good");
+    el("draft-box").style.display = "none";
+    el("wish").value = "";
+    settings = null;
+    loadEstimate();
+  } catch (error) {
+    notify("describe-notice", error.message, "bad");
+  } finally {
+    button.disabled = false;
+    button.textContent = original;
+  }
+});
+
+/* -------------------------------------------------------------------
+   Settings
+   ------------------------------------------------------------------- */
+
+async function loadSettings() {
+  try {
+    settings = await callApi("/api/settings");
+  } catch (error) {
+    notify("settings-notice", error.message, "bad");
+    return;
+  }
+  el("s-run").value = settings.max_posts_per_run;
+  el("s-each").value = settings.max_posts_per_watchlist;
+  el("s-author").value = settings.max_posts_per_author;
+  el("s-pages").value = settings.max_pages_per_watchlist;
+  el("s-price").value = settings.cost_per_1000_posts;
+  el("s-confirm").checked = settings.confirm_before_spending;
+  drawWatchlists();
+}
+
+function drawWatchlists() {
+  const holder = el("watch-list");
+  holder.innerHTML = "";
+  settings.watchlists.forEach(function (watch, index) {
+    holder.appendChild(buildWatchEditor(watch, index));
+  });
+}
+
+function buildWatchEditor(watch, index) {
+  const box = make("div", "watch" + (watch.enabled ? "" : " off"));
+
+  const head = make("div", "watch-head");
+
+  const onOff = document.createElement("input");
+  onOff.type = "checkbox";
+  onOff.checked = watch.enabled;
+  onOff.id = "watch-on-" + index;
+  onOff.addEventListener("change", function () {
+    watch.enabled = onOff.checked;
+    box.classList.toggle("off", !watch.enabled);
+  });
+  head.appendChild(onOff);
+
+  const name = document.createElement("input");
+  name.type = "text";
+  name.value = watch.name;
+  name.placeholder = "A name you will recognise";
+  name.setAttribute("aria-label", "Watchlist name");
+  name.addEventListener("input", function () { watch.name = name.value; });
+  head.appendChild(name);
+
+  const remove = make("button", "btn danger", "Remove");
+  remove.addEventListener("click", function () {
+    settings.watchlists.splice(index, 1);
+    drawWatchlists();
+  });
+  head.appendChild(remove);
+
+  box.appendChild(head);
+
+  const descField = make("div", "field");
+  const descLabel = make("label", null, "Plain English, read by the scorer");
+  descLabel.setAttribute("for", "watch-desc-" + index);
+  const desc = document.createElement("textarea");
+  desc.id = "watch-desc-" + index;
+  desc.rows = 2;
+  desc.value = watch.description;
+  desc.placeholder = "People asking someone to build an automation for them";
+  desc.addEventListener("input", function () { watch.description = desc.value; });
+  descField.appendChild(descLabel);
+  descField.appendChild(desc);
+  box.appendChild(descField);
+
+  const queryField = make("div", "field");
+  const queryLabel = make("label", null, "Search sent to X");
+  queryLabel.setAttribute("for", "watch-query-" + index);
+  const query = document.createElement("textarea");
+  query.id = "watch-query-" + index;
+  query.rows = 3;
+  query.value = watch.query;
+  query.placeholder = '("AI workflow") ("need help") lang:en -filter:retweets';
+  query.addEventListener("input", function () { watch.query = query.value; });
+  queryField.appendChild(queryLabel);
+  queryField.appendChild(query);
+  const hint = make("div", "hint",
+    'Use "quotes" for exact phrases, OR between alternatives, ' +
+    "lang:en for English, and -filter:retweets to drop reposts. " +
+    "Asking for too many exact phrases at once is the usual reason " +
+    "a watchlist finds nothing.");
+  queryField.appendChild(hint);
+  box.appendChild(queryField);
+
+  return box;
+}
+
+el("add-watch").addEventListener("click", function () {
+  if (!settings) return;
+  settings.watchlists.push({
+    name: "New watchlist",
+    description: "",
+    query: "",
+    enabled: false,
+  });
+  drawWatchlists();
+});
+
+el("save-settings").addEventListener("click", async function () {
+  if (!settings) return;
+  const payload = {
+    max_posts_per_run: parseInt(el("s-run").value, 10) || 1,
+    max_posts_per_watchlist: parseInt(el("s-each").value, 10) || 1,
+    max_posts_per_author: parseInt(el("s-author").value, 10) || 1,
+    max_pages_per_watchlist: parseInt(el("s-pages").value, 10) || 1,
+    cost_per_1000_posts: parseFloat(el("s-price").value) || 0,
+    confirm_before_spending: el("s-confirm").checked,
+    watchlists: settings.watchlists,
+  };
+  try {
+    const result = await callApi("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    notify("settings-notice",
+      "Saved. " + result.enabled + " of " + result.watchlists +
+      " watchlists are switched on.", "good");
+    loadEstimate();
+  } catch (error) {
+    notify("settings-notice", error.message, "bad");
+  }
+});
+
+/* -------------------------------------------------------------------
+   Running the collector and scorer
+   ------------------------------------------------------------------- */
+
+async function loadEstimate() {
+  try {
+    const data = await callApi("/api/estimate");
+    const names = data.active_watchlists.length
+      ? data.active_watchlists.join(", ")
+      : "none, switch one on in Settings";
+    el("estimate").textContent =
+      "A run receives at most " + data.max_posts + " posts, which costs " +
+      "about $" + data.worst_case_cost.toFixed(4) + " at $" +
+      data.price_per_1000 + " per thousand. Watchlists switched on: " +
+      names + ".";
+  } catch (error) {
+    el("estimate").textContent = "The cost estimate could not be read. "
+      + error.message;
+  }
+}
+
+async function runJob(path, button, confirmMessage) {
+  if (confirmMessage && !window.confirm(confirmMessage)) return;
+
+  const labels = [el("do-collect"), el("do-score"), el("do-rescore")];
+  const original = button.textContent;
+  labels.forEach(function (one) { one.disabled = true; });
+  button.textContent = "Working";
+  el("run-log").textContent = "Running. This window updates when it finishes.";
+
+  try {
+    const result = await callApi(path, { method: "POST" });
+    el("run-log").textContent = result.output || "Finished with nothing to say.";
+    notify("run-notice",
+      result.ok ? "Finished." : "It stopped early. Read the log below.",
+      result.ok ? "good" : "bad");
+    await loadLeads();
+    await loadEstimate();
+  } catch (error) {
+    notify("run-notice", error.message, "bad");
+  } finally {
+    labels.forEach(function (one) { one.disabled = false; });
+    button.textContent = original;
+  }
+}
+
+el("do-collect").addEventListener("click", function () {
+  runJob("/api/run/collect", el("do-collect"),
+    "This spends credits with the data supplier. The cost shown above is " +
+    "the ceiling. Go ahead?");
+});
+
+el("do-score").addEventListener("click", function () {
+  runJob("/api/run/score", el("do-score"), null);
+});
+
+el("do-rescore").addEventListener("click", function () {
+  runJob("/api/run/rescore", el("do-rescore"),
+    "This throws away every existing score and judges all posts again " +
+    "with the current rules. It costs nothing, and your saved and " +
+    "handled marks are kept. Go ahead?");
+});
+
+/* -------------------------------------------------------------------
+   Start
+   ------------------------------------------------------------------- */
+
+loadLeads().catch(function (error) {
+  el("lead-list").innerHTML = "";
+  const box = make("div", "notice bad",
+    "The leads could not be loaded. " + error.message);
+  el("lead-list").appendChild(box);
+});
+loadEstimate();
+</script>
+</body>
+</html>
