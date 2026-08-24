@@ -160,6 +160,24 @@ CONFIG_HEADER = """\
 #    -filter:retweets    exclude reposts
 #    -filter:replies     exclude replies
 #
+#  Settings the browser does NOT show, so change them here:
+#    data_source         'twitterapi' (cheap, no card) or 'official_x'
+#                        (X's own API, for strict compliance). Each
+#                        reads a different key from your .env file.
+#    daily_post_cap      hard limit on posts bought per day, shared by
+#                        the app, the command line and unattended mode.
+#                        This is the real spending brake.
+#    only_new_posts      true means never pay twice for the same post.
+#                        Leave this on.
+#    watcher:            unattended mode. poll_every_minutes is how
+#                        often it collects, digest_at is when the daily
+#                        summary is sent, digest_min_score is the
+#                        lowest score worth including.
+#
+#  Saving from the Settings tab keeps these values. It rewrites this
+#  header, so any notes you add yourself will not survive a save.
+#  Your previous version is always kept as config.backup.yaml.
+#
 #  Last saved from the app: {stamp}
 # =====================================================================
 

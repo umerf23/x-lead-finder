@@ -16,6 +16,20 @@
 
 # The most posts the tool may pull in one run, across all watchlists.
 # Keep this low while testing. 40 is plenty to build with.
+# Which supplier to buy posts from.
+#   twitterapi   cheap, no card needed, uses TWITTER_API_KEY
+#   official_x   X's own API, strict compliance, uses X_BEARER_TOKEN
+data_source: twitterapi
+
+# A hard ceiling on posts bought in a single day, shared by every
+# route into the tool: the app, the command line, and unattended mode.
+# This is your real spending brake. Everything below is a per-run limit.
+daily_post_cap: 200
+
+# If true, each run asks only for posts newer than the last check, so
+# you never pay twice for the same post. Leave this on.
+only_new_posts: true
+
 max_posts_per_run: 40
 
 # The most posts to pull from any single watchlist.

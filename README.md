@@ -9,6 +9,19 @@ No automatic outreach. Nothing is ever sent on your behalf.
 
 ---
 
+## Demo
+
+A two minute walkthrough showing a plain English query turned into a
+live search, and the leads it returns.
+
+Watch it here: [ADD YOUR VIDEO LINK]
+
+![The Leads tab](docs/demo-leads.png)
+![The Describe tab turning a sentence into a query](docs/demo-describe.png)
+![Settings, editing watchlists in the browser](docs/demo-settings.png)
+
+---
+
 ## 1. What it does
 
 It works in two stages, and the second one is the point.
@@ -65,38 +78,103 @@ without being opened.
 
 ---
 
-## 2. Install, in five commands
+## 2. Install
 
-You need Python 3.10 or newer, and two free API keys.
+You need Python 3.10 or newer, and two free API keys. Setup takes about
+five minutes. No developer help required.
 
-Open PowerShell in the project folder and run these one at a time.
+### Step 1. Get your two keys first
+
+Do this before installing, so you are not stopped halfway.
+
+| Key | Where from | Cost |
+| --- | --- | --- |
+| `TWITTER_API_KEY` | twitterapi.io, sign in with Google | Free starter credits, no card |
+| `GEMINI_API_KEY` | aistudio.google.com, click Get API key | Permanently free, no card |
+
+Keep both open in a tab. You will paste them in at Step 3.
+
+### Step 2. Install the program
+
+Open a terminal in the project folder and run these one at a time.
+
+On Windows, in PowerShell:
 
 ```
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 copy .env.example .env
+```
+
+On Mac or Linux, in Terminal:
+
+```
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+You will know it worked when `(venv)` appears at the start of your
+command prompt.
+
+### Step 3. Paste your keys in
+
+Open the new `.env` file in a plain text editor such as VS Code,
+Notepad++, or TextEdit. Replace the two placeholder lines:
+
+```
+TWITTER_API_KEY=paste_your_twitterapi_io_key_here
+GEMINI_API_KEY=paste_your_google_ai_studio_key_here
+```
+
+Write the key straight after the equals sign. No quotes, no spaces,
+nothing after it. Save and close.
+
+### Step 4. Check the keys work
+
+```
+python test_connection.py
+```
+
+This asks X for a handful of real posts and prints them. It costs a
+fraction of a cent. If you see posts, or the message that the
+connection worked but nothing matched right now, you are ready. If the
+key is wrong, it tells you exactly that instead of failing silently.
+
+### Step 5. Start the app
+
+```
 python app.py
 ```
 
 Then open `http://127.0.0.1:8000` in your browser.
 
-Between the fourth and fifth command, open `.env` and paste in your two
-keys. Where to get them:
+To stop the app, press Ctrl and C in the terminal window.
 
-- **TWITTER_API_KEY** from twitterapi.io. Sign in with Google and you
-  get free starter credits, no card required.
-- **GEMINI_API_KEY** from aistudio.google.com. Permanently free, no
-  card required, roughly 1500 requests a day.
+### Coming back to it later
 
-If PowerShell refuses to run the activate script, run this once and try
-again:
+The virtual environment has to be switched on each time you open a new
+terminal. You do not reinstall anything.
 
 ```
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+.\venv\Scripts\Activate.ps1     (Windows)
+source venv/bin/activate        (Mac or Linux)
+python app.py
 ```
 
-To stop the app, press Ctrl and C in the PowerShell window.
+### If something goes wrong
+
+| What you see | What to do |
+| --- | --- |
+| PowerShell refuses to run the activate script | Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, then try again |
+| `python` is not recognised | Try `python3`, or reinstall Python with the "Add to PATH" box ticked |
+| The browser page will not load | Check the terminal is still running. The app only works while that window is open |
+| Your Google key was rejected | The key is wrong or has a stray space. Re-copy it into `.env` |
+| The server rejected your key | Same, but for the twitterapi.io key |
+| The leads list is empty | Nothing has been collected yet. Go to the Collect tab and run a collection |
+| The digest is empty | Run `python check_data.py`. It explains why in plain English and changes nothing |
 
 ---
 
@@ -134,14 +212,24 @@ when a query breaks this rule.
 
 ### Other settings worth knowing
 
-| Setting | What it does |
-| --- | --- |
-| `daily_post_cap` | Hard daily limit on posts bought, shared by every route |
-| `max_posts_per_run` | Ceiling for a single collection |
-| `max_posts_per_author` | Stops one loud account filling your results |
-| `only_new_posts` | Asks only for posts newer than the last check |
-| `watcher.poll_every_minutes` | How often unattended mode collects |
-| `watcher.digest_at` | What time the daily summary is sent |
+Anything marked "Settings tab" can be changed in the browser. The rest
+live in `config.yaml` and are edited with a plain text editor. Saving
+from the Settings tab never touches the file-only settings.
+
+| Setting | Where | What it does |
+| --- | --- | --- |
+| `max_posts_per_run` | Settings tab | Ceiling for a single collection |
+| `max_posts_per_watchlist` | Settings tab | Ceiling for one watchlist per run |
+| `max_posts_per_author` | Settings tab | Stops one loud account filling your results |
+| `max_pages_per_watchlist` | Settings tab | How many pages to request per watchlist |
+| `cost_per_1000_posts` | Settings tab | Used for the cost estimate shown before spending |
+| `confirm_before_spending` | Settings tab | Asks you to confirm before any run that costs money |
+| `daily_post_cap` | `config.yaml` | Hard daily limit on posts bought, shared by every route |
+| `only_new_posts` | `config.yaml` | Asks only for posts newer than the last check |
+| `data_source` | `config.yaml` | `twitterapi` or `officialx`. Swap supplier without code changes |
+| `watcher.poll_every_minutes` | `config.yaml` | How often unattended mode collects |
+| `watcher.digest_at` | `config.yaml` | What time the daily summary is sent |
+| `watcher.digest_min_score` | `config.yaml` | Lowest score worth putting in the digest |
 
 ---
 
