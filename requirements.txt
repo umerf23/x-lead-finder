@@ -1,0 +1,26 @@
+# X Lead Finder, everything it needs.
+#
+# Install with (venv) showing in PowerShell:
+#
+#     pip install -r requirements.txt
+#
+# Lower bounds rather than exact pins, so the tool keeps working as
+# these libraries are updated. If you need a build that is identical
+# to a known good one, run pip freeze > requirements.lock.txt and keep
+# that alongside this file.
+
+# Talking to the data supplier and to Slack.
+requests>=2.31.0
+
+# Reading the keys out of .env.
+python-dotenv>=1.0.0
+
+# Reading and writing config.yaml.
+PyYAML>=6.0
+
+# The AI judge and the plain English query builder.
+google-genai>=1.0.0
+
+# The local web app.
+fastapi>=0.110.0
+uvicorn>=0.27.0

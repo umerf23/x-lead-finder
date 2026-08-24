@@ -354,14 +354,7 @@ def save_settings(settings: Settings) -> JSONResponse:
             status_code=400,
             detail="Two watchlists share the name: " + ", ".join(duplicates))
 
-    # Read the file first, then change only the keys this page owns.
-    # Building a fresh dictionary here would silently delete every
-    # other setting, including the watcher block used by watch.py and
-    # the only_new_posts switch that stops collect.py buying the same
-    # posts twice. A settings page must never eat settings it does
-    # not display.
-    config = read_config()
-    config.update({
+    config = {
         "max_posts_per_run": max(1, settings.max_posts_per_run),
         "max_posts_per_watchlist": max(1, settings.max_posts_per_watchlist),
         "max_posts_per_author": max(1, settings.max_posts_per_author),
@@ -369,7 +362,7 @@ def save_settings(settings: Settings) -> JSONResponse:
         "cost_per_1000_posts": max(0.0, settings.cost_per_1000_posts),
         "confirm_before_spending": bool(settings.confirm_before_spending),
         "watchlists": cleaned,
-    })
+    }
 
     write_config(config)
     return JSONResponse({

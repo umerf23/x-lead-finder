@@ -1,0 +1,12 @@
+{
+  "watchlists": {
+    "AI UGC video": {
+      "checked_at": 1787519942,
+      "query": "(\"AI UGC\" OR \"UGC video\" OR \"faceless video\" OR \"avatar video\") (\"looking for\" OR \"need someone\" OR \"anyone know\" OR \"who can make\") lang:en -filter:retweets"
+    },
+    "Custom AI workflows": {
+      "checked_at": 1787519942,
+      "query": "(n8n OR Zapier OR \"Make.com\" OR \"AI agent\" OR \"AI workflow\") (\"need help\" OR \"looking for someone\" OR \"who can build\" OR \"anyone build\") lang:en -filter:retweets"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "day": "2026-08-23",
+  "received_today": 1,
+  "runs_today": [
+    {
+      "at": "2026-08-23T14:19:32",
+      "source": "command line",
+      "received": 1
+    }
+  ],
+  "months": {
+    "2026-08": 1
+  }
+}

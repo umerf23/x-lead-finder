@@ -225,28 +225,6 @@ h2 {
 .byline { font-size: 13px; color: var(--ink-soft); margin-bottom: 6px; }
 .byline strong { color: var(--ink); font-weight: 600; }
 .post-text { margin: 0 0 8px; white-space: pre-wrap; word-break: break-word; }
-
-/* A long advert should not swallow the screen. Clip it and fade the
-   last line, so it reads as trimmed rather than broken. */
-.post-text.clipped {
-  max-height: 4.6em;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(180deg, #000 62%, transparent 100%);
-          mask-image: linear-gradient(180deg, #000 62%, transparent 100%);
-}
-.more {
-  background: none;
-  border: none;
-  padding: 0;
-  margin: 0 0 10px;
-  color: var(--signal);
-  font-size: 13px;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.more:hover { color: #0C5F5B; }
-.more:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
 .reason {
   border-left: 2px solid var(--signal-dim);
   padding-left: 10px;
@@ -834,21 +812,7 @@ function buildCard(lead) {
   body.appendChild(byline);
 
   /* textContent, never innerHTML, so a post can never inject markup */
-  const postText = make("p", "post-text", lead.text || "");
-  body.appendChild(postText);
-
-  /* Real job adverts run long. Clipping them keeps the score, the
-     reason and the evidence for the next lead on screen, which is the
-     whole point of a review list. One click opens the full post. */
-  if ((lead.text || "").length > 260) {
-    postText.classList.add("clipped");
-    const more = make("button", "more", "Show the whole post");
-    more.addEventListener("click", function () {
-      const nowClipped = postText.classList.toggle("clipped");
-      more.textContent = nowClipped ? "Show the whole post" : "Show less";
-    });
-    body.appendChild(more);
-  }
+  body.appendChild(make("p", "post-text", lead.text || ""));
 
   if (lead.reason) body.appendChild(make("div", "reason", lead.reason));
 

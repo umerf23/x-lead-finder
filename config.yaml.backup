@@ -84,33 +84,3 @@ watchlists:
       anyone can automate it for them.
     query: '("automate this" OR "automate my" OR "tired of doing manually") ("anyone" OR "looking for" OR "need someone" OR "recommend") lang:en -filter:retweets'
     enabled: false
-
-# ---------------------------------------------------------------------
-# Watcher settings, added in Step 11.
-# These control the unattended run and the daily digest.
-# Change the numbers here, never in the code.
-# ---------------------------------------------------------------------
-watcher:
-
-  # How often a collection cycle runs, in minutes.
-  poll_every_minutes: 10
-
-  # The hard daily limit on posts received from the supplier. This is
-  # the number you pay for. At 0.15 dollars per 1000 posts, 200 posts
-  # is about 3 cents a day.
-  daily_received_cap: 200
-
-  # Rebuild the static dashboard.html after each cycle.
-  rebuild_dashboard: true
-
-  # The once a day summary of the best new leads.
-  digest_enabled: true
-
-  # Local 24 hour time, as hours colon minutes.
-  digest_at: "18:00"
-
-  # Only leads scoring this or higher go in the digest.
-  digest_min_score: 65
-
-  # How many leads the digest carries at most.
-  digest_top_n: 10
