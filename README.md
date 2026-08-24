@@ -53,6 +53,18 @@ invent its way past a string comparison. On a real test run this caught
 a job board relaying somebody else's vacancy that had been scored 95,
 and dropped it to 25.
 
+You do not have to take that on trust. Run the tests:
+
+```
+python test_score.py
+```
+
+Twenty one checks, about a millisecond, no API keys and no cost. They
+confirm that an exact quote is accepted, that a quote with tidied
+punctuation is still accepted, that an invented quote is rejected, and
+that a score of 95 with unfindable evidence comes back capped at 39
+with the original claim recorded alongside it.
+
 ### What you see
 
 A local web app at `http://127.0.0.1:8000` with four tabs.
@@ -292,6 +304,8 @@ to read.
 | --- | --- |
 | `app.py` | The web app. Start here. |
 | `dashboard_app.html` | The page the app serves |
+| `build_dashboard.py` | Writes a standalone `dashboard.html`, no server needed |
+| `dashboard.html` | That standalone page. Refreshed by unattended mode |
 | `collect.py` | Buys posts from the supplier. The only file that spends |
 | `score.py` | Judges posts with Gemini. Free |
 | `query_builder.py` | Turns plain English into a search query |
@@ -299,5 +313,14 @@ to read.
 | `watch.py` | Unattended mode, on a timer |
 | `digest.py` | The daily summary, to Slack or email |
 | `check_data.py` | Explains why a digest is empty. Changes nothing |
+| `test_score.py` | Tests for the evidence check. No keys, no cost |
 | `config.yaml` | Every setting. Editable in the browser |
 | `data/` | Your posts, scores, review marks and ledger. Stays local |
+
+---
+
+## License
+
+MIT. See [LICENSE](LICENSE). You are free to use, modify and
+redistribute this, including commercially. It is provided as is, with
+no warranty.

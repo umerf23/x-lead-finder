@@ -5,7 +5,7 @@ Purpose: add the watcher settings to config.yaml without you having to
 open the file in Notepad, which mangles the spacing.
 
 It is careful:
-- it makes a backup first, at config.yaml.backup
+- it makes a backup first, at config.backup.yaml
 - it refuses to run twice
 - it checks the result still reads as valid YAML
 - if anything is wrong, it puts the original file back
@@ -21,7 +21,7 @@ import shutil
 import yaml
 
 CONFIG_FILE = "config.yaml"
-BACKUP_FILE = "config.yaml.backup"
+BACKUP_FILE = "config.backup.yaml"
 
 BLOCK = """
 # ---------------------------------------------------------------------
