@@ -4,3 +4,9 @@ venv/
 !.env.example
 __pycache__/
 *.pyc
+
+# Backups written at runtime by app.py and setup_watch.py
+config.backup.yaml
+
+# Runtime logs
+data/*.log

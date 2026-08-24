@@ -14,7 +14,7 @@ No automatic outreach. Nothing is ever sent on your behalf.
 A two minute walkthrough showing a plain English query turned into a
 live search, and the leads it returns.
 
-Watch it here: [ADD YOUR VIDEO LINK]
+Watch it here: https://www.youtube.com/watch?v=_OXjS63vdm4
 
 ![The Leads tab](docs/demo-leads.png)
 ![The Describe tab turning a sentence into a query](docs/demo-describe.png)
@@ -57,13 +57,20 @@ You do not have to take that on trust. Run the tests:
 
 ```
 python test_score.py
+python test_collect.py
 ```
 
-Twenty one checks, about a millisecond, no API keys and no cost. They
-confirm that an exact quote is accepted, that a quote with tidied
-punctuation is still accepted, that an invented quote is rejected, and
-that a score of 95 with unfindable evidence comes back capped at 39
-with the original claim recorded alongside it.
+Thirty one checks, well under a second, no API keys and no cost.
+The first file confirms that an exact quote is accepted, that a quote
+with tidied punctuation is still accepted, that an invented quote is
+rejected, and that a score of 95 with unfindable evidence comes back
+capped at 39 with the original claim recorded alongside it.
+
+The second file covers the spending cap. It runs real collections
+against a fake supplier and checks that every post paid for is
+counted, including the posts bought before a run failed part way
+through. A cap that forgets what it spent on the failure path is not
+a cap.
 
 ### What you see
 
@@ -314,6 +321,7 @@ to read.
 | `digest.py` | The daily summary, to Slack or email |
 | `check_data.py` | Explains why a digest is empty. Changes nothing |
 | `test_score.py` | Tests for the evidence check. No keys, no cost |
+| `test_collect.py` | Tests for the spend ledger. No keys, no cost |
 | `config.yaml` | Every setting. Editable in the browser |
 | `data/` | Your posts, scores, review marks and ledger. Stays local |
 

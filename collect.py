@@ -524,67 +524,69 @@ def main():
 
     reports = []
 
-    for watchlist in watchlists:
-        name = watchlist.get("name", "unnamed")
-        print("")
-        print("Searching:", name)
+    # The ledger must be written whatever happens. If a later
+    # watchlist fails, the posts already received from earlier ones
+    # have still been paid for, and a cap that forgets them is not a
+    # cap. A finally block covers a supplier error, a Ctrl and C, and
+    # a clean finish alike.
+    try:
+        for watchlist in watchlists:
+            name = watchlist.get("name", "unnamed")
+            print("")
+            print("Searching:", name)
 
-        if state["received"] >= limits["per_run"]:
-            print("  Stopped. The run wide cap was already reached.")
-            reports.append({
-                "name": name,
-                "received": 0, "saved": 0, "duplicates": 0,
-                "author_capped": 0, "pages": 0, "incremental": False,
-                "reached_supplier": False,
-                "note": "Skipped, the run wide cap was already reached.",
-            })
-            continue
+            if state["received"] >= limits["per_run"]:
+                print("  Stopped. The run wide cap was already reached.")
+                reports.append({
+                    "name": name,
+                    "received": 0, "saved": 0, "duplicates": 0,
+                    "author_capped": 0, "pages": 0, "incremental": False,
+                    "reached_supplier": False,
+                    "note": "Skipped, the run wide cap was already reached.",
+                })
+                continue
 
-        since_time = since_time_for(watchlist, memory, overlap, not only_new)
-        query = (watchlist.get("query") or "").strip()
+            since_time = since_time_for(watchlist, memory, overlap, not only_new)
+            query = (watchlist.get("query") or "").strip()
 
-        if since_time is None:
-            print("  Looking at all recent posts.")
-        else:
-            looking_back = datetime.fromtimestamp(since_time, timezone.utc)
-            print("  Looking only at posts since",
-                  looking_back.strftime("%d %b %H:%M UTC"))
+            if since_time is None:
+                print("  Looking at all recent posts.")
+            else:
+                looking_back = datetime.fromtimestamp(since_time, timezone.utc)
+                print("  Looking only at posts since",
+                      looking_back.strftime("%d %b %H:%M UTC"))
 
-        try:
-            report = collect_watchlist(watchlist, limits, state,
-                                       source, query, since_time)
-        except sources.SourceError as error:
-            save_posts(state["saved"])
-            save_collect_state(memory)
-            stop(str(error))
-        reports.append(report)
+            try:
+                report = collect_watchlist(watchlist, limits, state,
+                                           source, query, since_time)
+            except sources.SourceError as error:
+                stop(str(error))
+            reports.append(report)
 
-        # Move the watermark forward only if the supplier actually
-        # answered. If the request failed we must look again from the
-        # same point next time, or those posts are lost for good.
-        if report["reached_supplier"]:
-            memory["watchlists"][name] = {
-                "checked_at": run_started,
-                "query": query,
-            }
+            # Move the watermark forward only if the supplier actually
+            # answered. If the request failed we must look again from the
+            # same point next time, or those posts are lost for good.
+            if report["reached_supplier"]:
+                memory["watchlists"][name] = {
+                    "checked_at": run_started,
+                    "query": query,
+                }
 
-        print("  Received from supplier :", report["received"])
-        print("  New posts saved        :", report["saved"])
-        print("  Already had            :", report["duplicates"])
-        print("  Held back, author cap  :", report["author_capped"])
-        print("  Pages requested        :", report["pages"])
-        print("  ", report["note"])
+            print("  Received from supplier :", report["received"])
+            print("  New posts saved        :", report["saved"])
+            print("  Already had            :", report["duplicates"])
+            print("  Held back, author cap  :", report["author_capped"])
+            print("  Pages requested        :", report["pages"])
+            print("  ", report["note"])
 
-    save_posts(state["saved"])
-    save_collect_state(memory)
+    finally:
+        save_posts(state["saved"])
+        save_collect_state(memory)
+        spend.record(state["received"], source=arguments.source)
 
     total_received = state["received"]
     total_saved = sum(r["saved"] for r in reports)
     actual_cost = total_received / 1000.0 * price_per_1000
-
-    # Write to the shared ledger, so the watcher, the web app and the
-    # command line all count against one budget instead of three.
-    spend.record(total_received, source=arguments.source)
 
     print("")
     print("=" * 62)
